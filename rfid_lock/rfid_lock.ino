@@ -360,19 +360,16 @@ void editpin(int u) {   //enter new PIN- need to check if it matches an existing
 
 void drawuserinfo(int u) {
   int e;
-  char uname[16] = "";
-  for (int i = 0; i < 14; i++) {
-    uname[i] = EEPROM.read(u * 32 + 16 + i);
-  }
-  uname[14] = 0;
+  UserData user;
+  EEPROM.get(u*sizeof(UserData), user);
   XC4630_chara(0, 0, "USER INFO:", WHITE, BLACK);
   XC4630_char(120, 0, (u / 10) % 10 + '0', WHITE, BLACK);
   XC4630_char(132, 0, (u) % 10 + '0', WHITE, BLACK);
   XC4630_chara(0, 20, "Name:", WHITE, BLACK);
-  XC4630_chara(0, 40, uname, WHITE, BLACK);
+  XC4630_chara(0, 40, user.name, WHITE, BLACK);
   e = 0;
   for (int i = 0; i < 8; i++) {
-    e = e + EEPROM.read(u * 32 + i); //check if card set or all 0xFF
+    e = e + user.card_id[i];
   }
   XC4630_chara(0, 100, "Card:", WHITE, BLACK);
   if (e == 8 * 0xFF) {
@@ -380,14 +377,14 @@ void drawuserinfo(int u) {
   } else {
     XC4630_chara(0, 120, "SET    ", GREEN, BLACK);
   }
-  if (EEPROM.read(u * 32 + 30)) {
+  if (user.card_allowed) {
     XC4630_chara(120, 120, "ACTIVE  ", GREEN, BLACK);
   } else {
     XC4630_chara(120, 120, "DISABLED", RED, BLACK);
   }
   e = 0;
   for (int i = 0; i < 8; i++) {
-    e = e + EEPROM.read(u * 32 + i + 8); //check if pin set or all 0xFF
+    e = e + user.pin[i]; //check if pin set or all 0xFF
   }
   XC4630_chara(0, 180, "PIN:", WHITE, BLACK);
   if (e == 8 * 0xFF) {
@@ -395,7 +392,7 @@ void drawuserinfo(int u) {
   } else {
     XC4630_chara(0, 200, "SET    ", GREEN, BLACK);
   }
-  if (EEPROM.read(u * 32 + 31)) {
+  if (user.pin_allowed) {
     XC4630_chara(120, 200, "ACTIVE  ", GREEN, BLACK);
   } else {
     XC4630_chara(120, 200, "DISABLED", RED, BLACK);
