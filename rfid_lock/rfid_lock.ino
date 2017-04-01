@@ -4,18 +4,11 @@
 //master user is first user and only has settings access (can't unlock)
 //save settings to eeprom 8bytes card, 8 bytes pin, 14 bytes username, 2 byte permissions (allow access on card, allow access on pin) gives 32 users on Uno
 
-struct UserData {
-  byte card_id[8];
-  byte pin[8];
-  char name[14];
-  byte card_allowed[1];
-  byte pin_allowed[1];
-};
-
 #include "XC4630d.c"
 #include <SPI.h>
 #include <MFRC522.h>
 #include <EEPROM.h>
+#include <string.h>
 char hex[] = "0123456789ABCDEF";
 
 #define RST_PIN 0
@@ -24,6 +17,14 @@ char hex[] = "0123456789ABCDEF";
 #define RELAYTIME 5000
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
+
+struct UserData {
+  byte card_id[8];
+  byte pin[8];
+  char name[14];
+  byte card_allowed[1];
+  byte pin_allowed[1];
+};
 
 int bx[] = {25, 95, 165, 25, 95, 165, 25, 95, 165, 25, 95, 165};
 int by[] = {10, 10, 10, 70, 70, 70, 130, 130, 130, 190, 190, 190};
@@ -97,12 +98,13 @@ void dopin() {
   byte match;                   //flag for mismatch
   for (int i = 0; i < USERCOUNT; i++) { //FIXME: We _always_ check all users, we don't exit on a match
     match = 1;
-    for (int n = 0; n < 8; n++) {
-      if (EEPROM.read(i * 32 + 8 + n) != pin[n]) {
-        match = 0; //mismatch found, clear
-      }
+    UserData user;
+    EEPROM.get(i * sizeof(UserData), user);
+    
+    if (strncmp(user.pin, pin, 8)) {
+      match = 0; //mismatch found, clear
     }
-    if (EEPROM.read(i * 32 + 31) == 0) {
+    if (user.pin_allowed == 0) {
       match = 0; //pin not allowed for this user
     }
     if (match) {
