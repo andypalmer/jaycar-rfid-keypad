@@ -4,6 +4,14 @@
 //master user is first user and only has settings access (can't unlock)
 //save settings to eeprom 8bytes card, 8 bytes pin, 14 bytes username, 2 byte permissions (allow access on card, allow access on pin) gives 32 users on Uno
 
+struct UserData {
+  byte card_id[8];
+  byte pin[8];
+  char name[14];
+  byte card_allowed[1];
+  byte pin_allowed[1];
+};
+
 #include "XC4630d.c"
 #include <SPI.h>
 #include <MFRC522.h>
@@ -87,7 +95,7 @@ void loop() {
 void dopin() {
   int umatch = -1;              //user to be matched
   byte match;                   //flag for mismatch
-  for (int i = 0; i < USERCOUNT; i++) {
+  for (int i = 0; i < USERCOUNT; i++) { //FIXME: We _always_ check all users, we don't exit on a match
     match = 1;
     for (int n = 0; n < 8; n++) {
       if (EEPROM.read(i * 32 + 8 + n) != pin[n]) {
@@ -115,8 +123,8 @@ void dopin() {
 }
 
 void dounlock(int u) {            //unlock and display welcome message
-  char uname[16] = "";
-  pinMode(A5, OUTPUT);
+  char uname[16] = ""; //FIXME: Create a 16 char buffer for a guaranteed 15 char (including NUL) :-/
+  pinMode(A5, OUTPUT); //These two lines trigger the relay open
   digitalWrite(A5, HIGH);
   for (int i = 0; i < 14; i++) {
     uname[i] = EEPROM.read(u * 32 + 16 + i);
@@ -126,9 +134,9 @@ void dounlock(int u) {            //unlock and display welcome message
   XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
   XC4630_chara(0, 280, uname, GREEN, BLACK);
   delay(RELAYTIME);
-  digitalWrite(A5, LOW);
+  digitalWrite(A5, LOW); // relay close
   pinMode(A5, INPUT);
-  XC4630_box(0, 250, 239, 319, BLACK);
+  XC4630_box(0, 250, 239, 319, BLACK); // This MUST be duplication
   XC4630_chara(0, 260, "ENTER PIN:", GREY, BLACK);
   XC4630_chara(0, 280, "OR SWIPE CARD.", GREY, BLACK);
 }
@@ -548,7 +556,7 @@ int checkcard() {
     return 0; //no card found
   }
   for (byte i = 0; i < mfrc522.uid.size; i++) {
-    if (i < 8) {
+    if (i < 8) { // FIXME: only pull the first 8 bytes (so, the loop only matters if uid.size < 8)
       cardbytes[i] = mfrc522.uid.uidByte[i];
     }
   }
