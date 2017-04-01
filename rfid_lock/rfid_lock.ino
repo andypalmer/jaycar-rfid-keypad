@@ -96,9 +96,10 @@ void loop() {
 void dopin() {
   int umatch = -1;              //user to be matched
   byte match;                   //flag for mismatch
+  UserData user;
   for (int i = 0; i < USERCOUNT; i++) { //FIXME: We _always_ check all users, we don't exit on a match
     match = 1;
-    UserData user;
+ 
     EEPROM.get(i * sizeof(UserData), user);
     
     if (strncmp(user.pin, pin, 8)) {
@@ -109,6 +110,7 @@ void dopin() {
     }
     if (match) {
       umatch = i; //flag matched user
+      break;
     }
   }
   if (umatch == 0) {
@@ -116,7 +118,7 @@ void dopin() {
     return;
   }
   if (umatch > 0) {
-    dounlock(umatch);                               //do unlock routine for user
+    dounlock(user.name);                               //do unlock routine for user
   } else {
     XC4630_chara(0, 300, "PIN ERROR", RED, BLACK);  //error message
     delay(1000);
@@ -124,17 +126,12 @@ void dopin() {
   }
 }
 
-void dounlock(int u) {            //unlock and display welcome message
-  char uname[16] = ""; //FIXME: Create a 16 char buffer for a guaranteed 15 char (including NUL) :-/
+void dounlock(const char* name) {            //unlock and display welcome message
   pinMode(A5, OUTPUT); //These two lines trigger the relay open
   digitalWrite(A5, HIGH);
-  for (int i = 0; i < 14; i++) {
-    uname[i] = EEPROM.read(u * 32 + 16 + i);
-  }
-  uname[14] = 0;
   XC4630_box(0, 250, 239, 319, BLACK);
   XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
-  XC4630_chara(0, 280, uname, GREEN, BLACK);
+  XC4630_chara(0, 280, name, GREEN, BLACK);
   delay(RELAYTIME);
   digitalWrite(A5, LOW); // relay close
   pinMode(A5, INPUT);
