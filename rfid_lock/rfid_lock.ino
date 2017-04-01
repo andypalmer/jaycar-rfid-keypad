@@ -143,18 +143,21 @@ void dounlock(const char* name) {            //unlock and display welcome messag
 void docard() {
   int umatch = -1;              //user to be matched
   byte match;                   //flag for mismatch
+  UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
-    for (int n = 0; n < 8; n++) {
-      if (EEPROM.read(i * 32 + n) != cardbytes[n]) {
-        match = 0; //mismatch found, clear
-      }
+    EEPROM.get(i * sizeof(UserData), user);
+
+    if (strncmp(user.card_id, cardbytes, 8)) {
+      match = 0; //mismatch found, clear
     }
-    if (EEPROM.read(i * 32 + 30) == 0) {
+
+    if (user.card_allowed == 0) {
       match = 0; //pin not allowed for this user
     }
     if (match) {
       umatch = i; //flag matched user
+      break;
     }
   }
   if (umatch == 0) {
@@ -162,7 +165,7 @@ void docard() {
     return;
   }
   if (umatch > 0) {
-    dounlock(umatch);                               //do unlock routine for user
+    dounlock(user.name);                               //do unlock routine for user
   } else {
     XC4630_chara(0, 300, "CARD ERROR", RED, BLACK);  //error message
     delay(1000);
