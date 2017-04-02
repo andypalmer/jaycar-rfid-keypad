@@ -36,12 +36,6 @@ char kb[] = "1234567890QWERTYUIOPASDFGHJKL'ZXCVBNM .<"; //soft keyboard
 // Used by loop, editpin, dosetup and getpin
 char pin[10] = "";
 
-// docard(c) editcard(m) dosetup(m) getcard(cm) checkcard(c) 
-// used as the return of getcard, it's queried in docard and getcard
-byte cardbytes[8];                                  //for reading routine
-// return of getcard, used during editcard and dosetup
-byte mcardbytes[8];                                 //for setting routine
-
 void setup() {
   SPI.begin();              //start SPI
   mfrc522.PCD_Init();       //start RC522 module
@@ -90,9 +84,10 @@ void loop() {
   for (int i = 0; i < 8; i++) {
     XC4630_char(120 + i * 12, 260, ((i < s) ? '*' : ' '), GREY, BLACK);
   }
-  if (checkcard()) {
+  byte card_id[8];
+  if (checkcard(card_id)) {
     XC4630_chara(108, 280, "CARD", BLACK, WHITE);
-    docard();                                   //process card
+    docard(card_id);                                   //process card
     delay(100);
   } else {
     XC4630_chara(108, 280, "CARD", GREY, BLACK);
@@ -146,7 +141,7 @@ void dounlock(const char* name) {            //unlock and display welcome messag
   XC4630_chara(0, 280, "OR SWIPE CARD.", GREY, BLACK);
 }
 
-void docard() {
+void docard(byte* card_id) {
   int umatch = -1;              //user to be matched
   byte match;                   //flag for mismatch
   UserData user;
@@ -154,7 +149,7 @@ void docard() {
     match = 1;
     EEPROM.get(i * sizeof(UserData), user);
 
-    if (strncmp(user.card_id, cardbytes, 8)) {
+    if (strncmp(user.card_id, card_id, 8)) {
       match = 0; //mismatch found, clear
     }
 
@@ -304,16 +299,18 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
   byte match;                   //flag for mismatch
   int umatch = -1;
   XC4630_clear(BLACK);          //Blank screen
-  cardset = getcard();                                                            //get a card, returns 0 if no card selected
+  byte card_to_write[8];
+  cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
     for (int n = 0; n < 8; n++) {
-      if (EEPROM.read(i * 32 + n) != mcardbytes[n]) {
+      if (EEPROM.read(i * 32 + n) != card_to_write[n]) {
         match = 0; //mismatch found, clear
       }
     }
     if (match) {
       umatch = i; //flag matched user
+      break;
     }
   }
   if (umatch >= 0) {
@@ -325,7 +322,7 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
   }
   if (cardset) {
     for (int i = 0; i < 8; i++) {
-      EEPROM.write(i + u * 32, mcardbytes[i]); //copy to EEPROM
+      EEPROM.write(i + u * 32, card_to_write[i]); //copy to EEPROM
     }
   }
   XC4630_clear(BLACK);          //Blank screen
@@ -420,14 +417,15 @@ void drawuserinfo(int u) {
 void dosetup() {
   byte cardset = 0;
   byte pinset = 0;
+  byte card_to_write[8];
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
-  cardset = getcard();                                                            //get a card, returns 0 if no card selected
+  cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
   XC4630_clear(BLACK);          //Blank screen
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
   pinset = getpin();                                                              //get a pin, returns 0 if no pin entered/cancelled
   if (cardset) {
     for (int i = 0; i < 8; i++) {
-      EEPROM.write(i, mcardbytes[i]); //copy to EEPROM
+      EEPROM.write(i, card_to_write[i]); //copy to EEPROM
     }
   }
   if (pinset) {
@@ -440,21 +438,22 @@ void dosetup() {
   EEPROM.write(31, pinset);         //write card permission
 }
 
-byte getcard() {      //get a swiped card for setup
+byte getcard(byte* result) {      //get a swiped card for setup
   static const char hex[] = "0123456789ABCDEF";
   byte done = 0;
   byte cardset = 0;
   for (int i = 0; i < 8; i++) {
-    mcardbytes[i] = 0;
+    result[i] = 0;
   }
   XC4630_chara(8, 30, "Swipe a card to set", GREY, BLACK);
   XC4630_tbox(125, 90, 235, 120, "CANCEL", RED, GREY, 2);
+  byte card_id[8];
   while (!done) {
-    if (checkcard()) {        //valid card swiped
+    if (checkcard(card_id)) {        //valid card swiped
       for (int i = 0; i < 8; i++) {
-        mcardbytes[i] = cardbytes[i];
-        XC4630_char(i * 30 + 4, 60, hex[mcardbytes[i] >> 4], WHITE, BLACK);
-        XC4630_char(i * 30 + 16, 60, hex[mcardbytes[i] & 15], WHITE, BLACK);
+        result[i] = card_id[i];
+        XC4630_char(i * 30 + 4, 60, hex[result[i] >> 4], WHITE, BLACK);
+        XC4630_char(i * 30 + 16, 60, hex[result[i] & 15], WHITE, BLACK);
       }
       cardset = 1;
       XC4630_tbox(5, 90, 115, 120, "USE CARD", WHITE, GREY, 2);
@@ -464,7 +463,7 @@ byte getcard() {      //get a swiped card for setup
     }
     if (XC4630_istouch(125, 90, 235, 120)) {
       for (int i = 0; i < 8; i++) {
-        mcardbytes[i] = 0; //clear card value
+        result[i] = 0; //clear card value
       }
       done = 1;
       cardset = 0;
@@ -552,9 +551,9 @@ char checkkeyboard() {
   return 0;
 }
 
-int checkcard() {
+int checkcard(byte* result) {
   for (byte i = 0; i < 8; i++) {
-    cardbytes[i] = 0;
+    result[i] = 0;
   }
   if (!mfrc522.PICC_IsNewCardPresent()) {
     return 0; //no card found
@@ -564,7 +563,7 @@ int checkcard() {
   }
   for (byte i = 0; i < mfrc522.uid.size; i++) {
     if (i < 8) { // FIXME: only pull the first 8 bytes (so, the loop only matters if uid.size < 8)
-      cardbytes[i] = mfrc522.uid.uidByte[i];
+      result[i] = mfrc522.uid.uidByte[i];
     }
   }
   mfrc522.PICC_HaltA();
