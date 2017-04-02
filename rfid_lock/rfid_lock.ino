@@ -9,7 +9,6 @@
 #include <MFRC522.h>
 #include <EEPROM.h>
 #include <string.h>
-char hex[] = "0123456789ABCDEF";
 
 #define RST_PIN 0
 #define SS_PIN 10
@@ -435,6 +434,7 @@ void dosetup() {
 }
 
 byte getcard() {      //get a swiped card for setup
+  static const char hex[] = "0123456789ABCDEF";
   byte done = 0;
   byte cardset = 0;
   for (int i = 0; i < 8; i++) {
@@ -458,7 +458,8 @@ byte getcard() {      //get a swiped card for setup
     if (XC4630_istouch(125, 90, 235, 120)) {
       for (int i = 0; i < 8; i++) {
         mcardbytes[i] = 0; //clear card value
-      } done = 1;
+      }
+      done = 1;
       cardset = 0;
     }
   }
