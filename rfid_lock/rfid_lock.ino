@@ -22,8 +22,8 @@ struct UserData {
   byte card_id[8];
   byte pin[8];
   char name[14];
-  byte card_allowed[1];
-  byte pin_allowed[1];
+  byte card_allowed;
+  byte pin_allowed;
 };
 
 int bx[] = {25, 95, 165, 25, 95, 165, 25, 95, 165, 25, 95, 165};
@@ -97,7 +97,7 @@ void dopin() {
   int umatch = -1;              //user to be matched
   byte match;                   //flag for mismatch
   UserData user;
-  for (int i = 0; i < USERCOUNT; i++) { //FIXME: We _always_ check all users, we don't exit on a match
+  for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
  
     EEPROM.get(i * sizeof(UserData), user);
