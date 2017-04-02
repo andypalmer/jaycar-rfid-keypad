@@ -13,7 +13,7 @@
 #define RST_PIN 0
 #define SS_PIN 10
 #define USERCOUNT 32
-#define RELAYTIME 5000
+#define RELAYTIME 1000
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 
@@ -25,14 +25,21 @@ struct UserData {
   byte pin_allowed;
 };
 
+// Used by dobutton and checktouch
 int bx[] = {25, 95, 165, 25, 95, 165, 25, 95, 165, 25, 95, 165};
 int by[] = {10, 10, 10, 70, 70, 70, 130, 130, 130, 190, 190, 190};
 char bb[] = "123456789#0*";
+
+// Used by drawkeyboard and checkkeyboard
 char kb[] = "1234567890QWERTYUIOPASDFGHJKL'ZXCVBNM .<"; //soft keyboard
-byte tstate[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte ltstate[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Used by loop, editpin, dosetup and getpin
 char pin[10] = "";
+
+// docard(c) editcard(m) dosetup(m) getcard(cm) checkcard(c) 
+// used as the return of getcard, it's queried in docard and getcard
 byte cardbytes[8];                                  //for reading routine
+// return of getcard, used during editcard and dosetup
 byte mcardbytes[8];                                 //for setting routine
 
 void setup() {
@@ -571,6 +578,8 @@ void dobutton(int n, unsigned int f, unsigned int b, int s) {
 }
 
 char checktouch() {                    //returns touched button
+  static byte ltstate[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  byte tstate[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   char key = 0;
   for (int i = 0; i < 12; i++) {
     tstate[i] = XC4630_istouch(bx[i], by[i], bx[i] + 59, by[i] + 59);
