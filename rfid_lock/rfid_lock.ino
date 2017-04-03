@@ -95,23 +95,15 @@ void loop() {
 
 void dopin() {
   int umatch = -1;              //user to be matched
-  byte match;                   //flag for mismatch
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
-    match = 1;
+    user = get_user(i);
 
-    EEPROM.get(i * sizeof(UserData), user);
+    if (strncmp(user.pin, pin, 8)) { continue; }
+    if (!user.pin_allowed)         { break; }
 
-    if (strncmp(user.pin, pin, 8)) {
-      match = 0; //mismatch found, clear
-    }
-    if (user.pin_allowed == 0) {
-      match = 0; //pin not allowed for this user
-    }
-    if (match) {
-      umatch = i; //flag matched user
-      break;
-    }
+    umatch = i; //flag matched user
+    break;
   }
   if (umatch == 0) {
     domaster();  //master user matched, do master routine
@@ -124,6 +116,12 @@ void dopin() {
     delay(1000);
     XC4630_chara(0, 300, "PIN ERROR", BLACK, BLACK);
   }
+}
+
+UserData get_user(int i) {
+  UserData result;
+  EEPROM.get(i * sizeof(UserData), result);
+  return result;
 }
 
 void dounlock(const char* name) {            //unlock and display welcome message
@@ -154,23 +152,15 @@ void lock() {
 
 void docard(byte* card_id) {
   int umatch = -1;              //user to be matched
-  byte match;                   //flag for mismatch
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
-    match = 1;
-    EEPROM.get(i * sizeof(UserData), user);
+    user = get_user(i);
 
-    if (strncmp(user.card_id, card_id, 8)) {
-      match = 0; //mismatch found, clear
-    }
+    if (strncmp(user.card_id, card_id, 8)) { continue; }
+    if (!user.card_allowed) { break; }
 
-    if (user.card_allowed == 0) {
-      match = 0; //pin not allowed for this user
-    }
-    if (match) {
-      umatch = i; //flag matched user
-      break;
-    }
+    umatch = i; //flag matched user
+    break;
   }
   if (umatch == 0) {
     domaster();  //master user matched, do master routine
@@ -375,8 +365,7 @@ void editpin(int u) {   //enter new PIN- need to check if it matches an existing
 
 void drawuserinfo(int u) {
   int e;
-  UserData user;
-  EEPROM.get(u*sizeof(UserData), user);
+  UserData user = get_user(u);
   XC4630_chara(0, 0, "USER INFO:", WHITE, BLACK);
   XC4630_char(120, 0, (u / 10) % 10 + '0', WHITE, BLACK);
   XC4630_char(132, 0, (u) % 10 + '0', WHITE, BLACK);
