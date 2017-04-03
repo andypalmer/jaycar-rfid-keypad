@@ -76,7 +76,7 @@ void loop() {
     s = 0;
     pin[0] = 0;
   }
-  if (a) {
+  if (a && s<8) {
     pin[s] = a;
     pin[s + 1] = 0;
     s++;
