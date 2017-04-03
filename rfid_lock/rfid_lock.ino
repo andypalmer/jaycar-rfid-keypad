@@ -42,18 +42,23 @@ void setup() {
   pinMode(0, INPUT);        //use serial pullup to hold high
   XC4630_init();
   XC4630_rotate(1);
-  XC4630_clear(BLACK);          //Blank screen
   int e = 0;
   for (int i = 0; i < 16; i++) {
     e = e + EEPROM.read(i); //check EEPROM contents (255=blank)
   }
   if (e == 16 * 255) {
     dosetup();  //first time setup if no master user set
-    XC4630_clear(BLACK);
   }
-  for (int i = 0; i < 12; i++) {
-    dobutton(i, WHITE, GREY, 50);
-  }
+  draw_user_screen();
+}
+
+void clear_screen() {
+  XC4630_clear(BLACK);
+}
+
+void draw_user_screen() {
+  clear_screen();
+  draw_pinpad();
   display_ready_message();
 }
 
@@ -172,7 +177,7 @@ void doerror(const char* reason) {
 void domaster() {                                 //for master user to setup other users
   int u = 1;          //user to start editing
   byte done = 0;      //flag to say we've finished
-  XC4630_clear(BLACK);          //Blank screen
+  clear_screen();
   drawuserinfo(u);
   while (!done) {
     if (XC4630_istouch(165, 65, 235, 95)) {
@@ -214,7 +219,8 @@ void domaster() {                                 //for master user to setup oth
       u = u - 1;  //previous
       if (u < 0) {
         u = USERCOUNT - 1;
-      } XC4630_clear(BLACK);
+      }
+      clear_screen();
       drawuserinfo(u);
       delay(100);
     }
@@ -222,7 +228,8 @@ void domaster() {                                 //for master user to setup oth
       u = u + 1;  //next
       if (u > USERCOUNT - 1) {
         u = 0;
-      } XC4630_clear(BLACK);
+      }
+      clear_screen();
       drawuserinfo(u);
       delay(100);
     }
@@ -230,11 +237,7 @@ void domaster() {                                 //for master user to setup oth
       done = 1; //exit
     }
   }
-  XC4630_clear(BLACK);          //Blank screen
-  for (int i = 0; i < 12; i++) {
-    dobutton(i, WHITE, GREY, 50);
-  }
-  display_ready_message();
+  draw_user_screen();
 }
 
 void editusername(int u) {
@@ -249,7 +252,7 @@ void editusername(int u) {
     }
   }
   uname[14] = 0;
-  XC4630_clear(BLACK);          //Blank screen
+  clear_screen();
   XC4630_chara(0, 0, "TYPE USERNAME:", WHITE, BLACK);
   XC4630_tbox(5, 145, 115, 175, "CANCEL", WHITE, GREY, 2);
   XC4630_tbox(125, 145, 235, 175, "ACCEPT", WHITE, GREY, 2);
@@ -276,13 +279,14 @@ void editusername(int u) {
     }
     uname[14] = 0;                              //limit length
     if (XC4630_istouch(5, 145, 115, 175)) {
-      XC4630_clear(BLACK);  //no change on cancel
+      clear_screen();
       return;
     }
     if (XC4630_istouch(125, 145, 235, 175)) {
       for (int i = 0; i < 14; i++) {
         EEPROM.write(u * 32 + 16 + i, uname[i]);
-      } XC4630_clear(BLACK);
+      }
+      clear_screen();
       return;
     }
   }
@@ -292,8 +296,9 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
   byte cardset = 0;
   byte match;                   //flag for mismatch
   int umatch = -1;
-  XC4630_clear(BLACK);          //Blank screen
   byte card_to_write[8];
+
+  clear_screen();
   cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
@@ -309,24 +314,25 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
   }
   if (umatch >= 0) {
     cardset = 0;  //card already used
-    XC4630_clear(BLACK);
+    clear_screen();
     XC4630_chara(0, 150, "CARD ALREADY IN USE!", RED, BLACK);
     delay(2000);
-    XC4630_clear(BLACK);
+    clear_screen();
   }
   if (cardset) {
     for (int i = 0; i < 8; i++) {
       EEPROM.write(i + u * 32, card_to_write[i]); //copy to EEPROM
     }
   }
-  XC4630_clear(BLACK);          //Blank screen
+  clear_screen();
 }
 
 void editpin(int u) {   //enter new PIN- need to check if it matches an existing one before validating
   byte pinset = 0;
   byte match;                   //flag for mismatch
   int umatch = -1;
-  XC4630_clear(BLACK);          //Blank screen
+  
+  clear_screen();
   pinset = getpin();                                                              //get a pin, returns 0 if no pin entered/cancelled
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
@@ -341,10 +347,10 @@ void editpin(int u) {   //enter new PIN- need to check if it matches an existing
   }
   if (umatch >= 0) {
     pinset = 0;  //PIN already used
-    XC4630_clear(BLACK);
+    clear_screen();
     XC4630_chara(8, 150, "PIN ALREADY IN USE!", RED, BLACK);
     delay(2000);
-    XC4630_clear(BLACK);
+    clear_screen();
   }
   if (pinset) {
     for (int i = 0; i < 8; i++) {
@@ -354,7 +360,7 @@ void editpin(int u) {   //enter new PIN- need to check if it matches an existing
   for (int i = 0; i < 8; i++) {
     pin[i] = 0; // clear array for main program
   }
-  XC4630_clear(BLACK);          //Blank screen
+  clear_screen();
 }
 
 void drawuserinfo(int u) {
@@ -411,9 +417,11 @@ void dosetup() {
   byte cardset = 0;
   byte pinset = 0;
   byte card_to_write[8];
+
+  clear_screen();
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
   cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
-  XC4630_clear(BLACK);          //Blank screen
+  clear_screen();
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
   pinset = getpin();                                                              //get a pin, returns 0 if no pin entered/cancelled
   if (cardset) {
@@ -468,9 +476,7 @@ byte getcard(byte* result) {      //get a swiped card for setup
 byte getpin() {       //get a typed pin for setup
   byte done = 0;
   byte pinset = 0;
-  for (int i = 0; i < 12; i++) {
-    dobutton(i, WHITE, GREY, 50); //draw buttons
-  }
+  draw_pinpad();
   XC4630_chara(0, 260, "ENTER PIN:", WHITE, BLACK);
   XC4630_tbox(125, 289, 235, 319, "CANCEL", RED, GREY, 2);
   for (int i = 0; i < 8; i++) {
@@ -562,6 +568,12 @@ int checkcard(byte* result) {
   }
   mfrc522.PICC_HaltA();
   return 1;                                             //card ID read
+}
+
+void draw_pinpad() {
+  for (int i = 0; i < 12; i++) {
+    dobutton(i, WHITE, GREY, 50);
+  }
 }
 
 void dobutton(int n, unsigned int f, unsigned int b, int s) {
