@@ -99,9 +99,9 @@ void dopin() {
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
- 
+
     EEPROM.get(i * sizeof(UserData), user);
-    
+
     if (strncmp(user.pin, pin, 8)) {
       match = 0; //mismatch found, clear
     }
@@ -508,7 +508,7 @@ byte getpin() {       //get a typed pin for setup
     if (a == '*') {
       a = 0; //ignore (use button for OK)
     }
-    if (a) {
+    if (a && s<8) {
       pin[s] = a;
       pin[s + 1] = 0;
       s++;
@@ -528,7 +528,8 @@ byte getpin() {       //get a typed pin for setup
     if (XC4630_istouch(125, 289, 235, 319)) {
       for (int i = 0; i < 8; i++) {
         pin[i] = 0; //clear pin value
-      } done = 1;
+      }
+      done = 1;
       pinset = 0;
     }
   }
@@ -606,4 +607,3 @@ char checktouch() {                    //returns touched button
   }
   return key;
 }
-
