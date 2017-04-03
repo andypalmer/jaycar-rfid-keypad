@@ -158,7 +158,7 @@ void docard(byte* card_id) {
   doerror("CARD ERROR");
 }
 
-void dounlock(const char* name) {            //unlock and display welcome message
+void dounlock(const char* name) {
   unlock();
   XC4630_box(0, 250, 239, 319, BLACK);
   XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
@@ -242,7 +242,7 @@ void domaster() {                                 //for master user to setup oth
 
 void editusername(int u) {
   int done = 0;
-  char uname[16] = "";
+  char uname[14];
   char c;
   int s;
   for (int i = 0; i < 14; i++) {
@@ -251,7 +251,7 @@ void editusername(int u) {
       uname[i] = 0;
     }
   }
-  uname[14] = 0;
+  uname[13] = 0;
   clear_screen();
   XC4630_chara(0, 0, "TYPE USERNAME:", WHITE, BLACK);
   XC4630_tbox(5, 145, 115, 175, "CANCEL", WHITE, GREY, 2);
@@ -261,9 +261,9 @@ void editusername(int u) {
     s = strlen(uname);
     XC4630_chara(0, 20, uname, GREY, BLACK);
     if ((millis() / 300) & 1) {
-      XC4630_chara(s * 12, 20, "_  ", GREY, BLACK); //flashing cursor
+      XC4630_chara(s * 12, 20, "_ ", GREY, BLACK);
     } else {
-      XC4630_chara(s * 12, 20, "   ", GREY, BLACK);
+      XC4630_chara(s * 12, 20, "_ ", BLACK, BLACK);
     }
     c = checkkeyboard();
     if (c == '<') {
@@ -272,12 +272,11 @@ void editusername(int u) {
         s--;
       } c = 0;
     }
-    if (c) {
+    if (c && s<13) {
       uname[s] = c;  //add character
       s++;
       uname[s] = 0;
     }
-    uname[14] = 0;                              //limit length
     if (XC4630_istouch(5, 145, 115, 175)) {
       clear_screen();
       return;
