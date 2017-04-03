@@ -159,13 +159,17 @@ void docard(byte* card_id) {
 }
 
 void dounlock(const char* name) {
+  display_unlock_message(name);
   unlock();
-  XC4630_box(0, 250, 239, 319, BLACK);
-  XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
-  XC4630_chara(0, 280, name, GREEN, BLACK);
   delay(RELAYTIME);
   lock();
   display_ready_message();
+}
+
+void display_unlock_message(const char* name) {
+  XC4630_box(0, 250, 239, 319, BLACK);
+  XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
+  XC4630_chara(0, 280, name, GREEN, BLACK);
 }
 
 void doerror(const char* reason) {
@@ -270,7 +274,8 @@ void editusername(int u) {
       if (s) {
         uname[s - 1] = 0;  //backspace
         s--;
-      } c = 0;
+      }
+      c = 0;
     }
     if (c && s<13) {
       uname[s] = c;  //add character
