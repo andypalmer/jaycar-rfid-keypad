@@ -33,9 +33,6 @@ char bb[] = "123456789#0*";
 // Used by drawkeyboard and checkkeyboard
 char kb[] = "1234567890QWERTYUIOPASDFGHJKL'ZXCVBNM .<"; //soft keyboard
 
-// Used by loop, editpin, dosetup and getpin
-char pin[10] = "";
-
 void setup() {
   SPI.begin();              //start SPI
   mfrc522.PCD_Init();       //start RC522 module
@@ -63,6 +60,8 @@ void draw_user_screen() {
 }
 
 void loop() {
+  static char pin[9] = "";
+  byte card_id[8];
   char a;
   int s;
   a = checktouch();
@@ -75,7 +74,7 @@ void loop() {
     }
   }
   if (a == '*') {
-    dopin();  //pin entered, process, clear
+    dopin(pin);  //pin entered, process, clear
     a = 0;
     s = 0;
     pin[0] = 0;
@@ -88,7 +87,6 @@ void loop() {
   for (int i = 0; i < 8; i++) {
     XC4630_char(120 + i * 12, 260, ((i < s) ? '*' : ' '), GREY, BLACK);
   }
-  byte card_id[8];
   if (checkcard(card_id)) {
     XC4630_chara(108, 280, "CARD", BLACK, WHITE);
     docard(card_id);                                   //process card
@@ -120,7 +118,7 @@ void lock() {
   pinMode(A5, INPUT);
 }
 
-void dopin() {
+void dopin(const char* pin) {
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     user = get_user(i);
@@ -335,9 +333,10 @@ void editpin(int u) {   //enter new PIN- need to check if it matches an existing
   byte pinset = 0;
   byte match;                   //flag for mismatch
   int umatch = -1;
+  char pin[8];
   
   clear_screen();
-  pinset = getpin();                                                              //get a pin, returns 0 if no pin entered/cancelled
+  pinset = getpin(pin);
   for (int i = 0; i < USERCOUNT; i++) {
     match = 1;
     for (int n = 0; n < 8; n++) {
@@ -420,17 +419,18 @@ void drawuserinfo(int u) {
 void dosetup() {
   byte cardset = 0;
   byte pinset = 0;
-  byte card_to_write[8];
+  byte card_id[8];
+  char pin[8];
 
   clear_screen();
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
-  cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
+  cardset = getcard(card_id);                                                            //get a card, returns 0 if no card selected
   clear_screen();
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
-  pinset = getpin();                                                              //get a pin, returns 0 if no pin entered/cancelled
+  pinset = getpin(pin);                                                              //get a pin, returns 0 if no pin entered/cancelled
   if (cardset) {
     for (int i = 0; i < 8; i++) {
-      EEPROM.write(i, card_to_write[i]); //copy to EEPROM
+      EEPROM.write(i, card_id[i]); //copy to EEPROM
     }
   }
   if (pinset) {
@@ -477,7 +477,7 @@ byte getcard(byte* result) {      //get a swiped card for setup
   return cardset;
 }
 
-byte getpin() {       //get a typed pin for setup
+byte getpin(char* pin) {       //get a typed pin for setup
   byte done = 0;
   byte pinset = 0;
   draw_pinpad();
