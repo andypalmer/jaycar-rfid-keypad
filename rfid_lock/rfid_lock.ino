@@ -93,45 +93,10 @@ void loop() {
   }
 }
 
-void dopin() {
-  int umatch = -1;              //user to be matched
-  UserData user;
-  for (int i = 0; i < USERCOUNT; i++) {
-    user = get_user(i);
-
-    if (strncmp(user.pin, pin, 8)) { continue; }
-    if (!user.pin_allowed)         { break; }
-
-    umatch = i; //flag matched user
-    break;
-  }
-  if (umatch == 0) {
-    domaster();  //master user matched, do master routine
-    return;
-  }
-  if (umatch > 0) {
-    dounlock(user.name);                               //do unlock routine for user
-  } else {
-    XC4630_chara(0, 300, "PIN ERROR", RED, BLACK);  //error message
-    delay(1000);
-    XC4630_chara(0, 300, "PIN ERROR", BLACK, BLACK);
-  }
-}
-
 UserData get_user(int i) {
   UserData result;
   EEPROM.get(i * sizeof(UserData), result);
   return result;
-}
-
-void dounlock(const char* name) {            //unlock and display welcome message
-  unlock();
-  XC4630_box(0, 250, 239, 319, BLACK);
-  XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
-  XC4630_chara(0, 280, name, GREEN, BLACK);
-  delay(RELAYTIME);
-  lock();
-  display_ready_message();
 }
 
 void display_ready_message() {
@@ -150,8 +115,26 @@ void lock() {
   pinMode(A5, INPUT);
 }
 
+void dopin() {
+  UserData user;
+  for (int i = 0; i < USERCOUNT; i++) {
+    user = get_user(i);
+
+    if (strncmp(user.pin, pin, 8)) { continue; }
+    if (!user.pin_allowed)         { break; }
+    
+    if (i==0) { 
+      domaster(); 
+    } else {
+      dounlock(user.name);
+    }
+    return;
+  }
+
+  doerror("PIN ERROR");
+}
+
 void docard(byte* card_id) {
-  int umatch = -1;              //user to be matched
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     user = get_user(i);
@@ -159,20 +142,31 @@ void docard(byte* card_id) {
     if (strncmp(user.card_id, card_id, 8)) { continue; }
     if (!user.card_allowed) { break; }
 
-    umatch = i; //flag matched user
-    break;
-  }
-  if (umatch == 0) {
-    domaster();  //master user matched, do master routine
+    if (i==0) { 
+      domaster(); 
+    } else {
+      dounlock(user.name);
+    }
     return;
   }
-  if (umatch > 0) {
-    dounlock(user.name);                               //do unlock routine for user
-  } else {
-    XC4630_chara(0, 300, "CARD ERROR", RED, BLACK);  //error message
+  
+  doerror("CARD ERROR");
+}
+
+void dounlock(const char* name) {            //unlock and display welcome message
+  unlock();
+  XC4630_box(0, 250, 239, 319, BLACK);
+  XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
+  XC4630_chara(0, 280, name, GREEN, BLACK);
+  delay(RELAYTIME);
+  lock();
+  display_ready_message();
+}
+
+void doerror(const char* reason) {
+    XC4630_chara(0, 300, reason, RED, BLACK);  //error message
     delay(1000);
-    XC4630_chara(0, 300, "CARD ERROR", BLACK, BLACK);
-  }
+    XC4630_chara(0, 300, reason, BLACK, BLACK);
 }
 
 void domaster() {                                 //for master user to setup other users
