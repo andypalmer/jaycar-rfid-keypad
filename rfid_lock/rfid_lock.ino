@@ -54,8 +54,7 @@ void setup() {
   for (int i = 0; i < 12; i++) {
     dobutton(i, WHITE, GREY, 50);
   }
-  XC4630_chara(0, 260, "ENTER PIN:", GREY, BLACK);
-  XC4630_chara(0, 280, "OR SWIPE CARD.", GREY, BLACK);
+  display_ready_message();
 }
 
 void loop() {
@@ -128,17 +127,29 @@ void dopin() {
 }
 
 void dounlock(const char* name) {            //unlock and display welcome message
-  pinMode(A5, OUTPUT); //These two lines trigger the relay open
-  digitalWrite(A5, HIGH);
+  unlock();
   XC4630_box(0, 250, 239, 319, BLACK);
   XC4630_chara(0, 260, "UNLOCK", GREEN, BLACK);
   XC4630_chara(0, 280, name, GREEN, BLACK);
   delay(RELAYTIME);
-  digitalWrite(A5, LOW); // relay close
-  pinMode(A5, INPUT);
-  XC4630_box(0, 250, 239, 319, BLACK); // This MUST be duplication
+  lock();
+  display_ready_message();
+}
+
+void display_ready_message() {
+  XC4630_box(0, 250, 239, 319, BLACK);
   XC4630_chara(0, 260, "ENTER PIN:", GREY, BLACK);
   XC4630_chara(0, 280, "OR SWIPE CARD.", GREY, BLACK);
+}
+
+void unlock() {
+  pinMode(A5, OUTPUT); //These two lines trigger the relay open
+  digitalWrite(A5, HIGH);
+}
+
+void lock() {
+  digitalWrite(A5, LOW); // relay close
+  pinMode(A5, INPUT);
 }
 
 void docard(byte* card_id) {
@@ -239,8 +250,7 @@ void domaster() {                                 //for master user to setup oth
   for (int i = 0; i < 12; i++) {
     dobutton(i, WHITE, GREY, 50);
   }
-  XC4630_chara(0, 260, "ENTER PIN:", GREY, BLACK);
-  XC4630_chara(0, 280, "OR SWIPE CARD.", GREY, BLACK);
+  display_ready_message();
 }
 
 void editusername(int u) {
