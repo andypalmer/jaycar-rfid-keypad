@@ -44,6 +44,7 @@ void setup() {
     dosetup(admin);  //first time setup if no master user set
   }
   draw_user_screen();
+  Serial.begin(9600);
 }
 
 void clear_screen() {
@@ -56,40 +57,54 @@ void draw_user_screen() {
   display_ready_message();
 }
 
+typedef char (*keyboard_function)(char*);
+
+typedef struct specialkey {
+  char key;
+  keyboard_function function;
+} specialkey;
+
 void loop() {
   static char pin[9] = "";
   byte card_id[8];
   char a;
   int s;
+
   a = checktouch();
-  s = strlen(pin);
-  if (a == '#') {
-    if (s) {
-      pin[s - 1] = 0;  //erase last character of pin
-      s--;
-      a = 0;
+  
+  static const specialkey keys[] = {{'#',erase_last_from}, {'*', dopin}};
+  for(int i=0; i < 2; i++) {
+    if (keys[i].key == a) {
+      a = keys[i].function(pin);
     }
   }
-  if (a == '*') {
-    dopin(pin);  //pin entered, process, clear
-    a = 0;
-    s = 0;
-    pin[0] = 0;
-  }
+
+  s = strlen(pin);
   if (a && s<8) {
     pin[s] = a;
     pin[s + 1] = 0;
-    s++;
   }
+ 
+  s = strlen(pin);
   for (int i = 0; i < 8; i++) {
     XC4630_char(120 + i * 12, 260, ((i < s) ? '*' : ' '), GREY, BLACK);
   }
+  
   if (checkcard(card_id)) {
     XC4630_chara(108, 280, "CARD", BLACK, WHITE);
     docard(card_id);                                   //process card
     delay(100);
   } else {
     XC4630_chara(108, 280, "CARD", GREY, BLACK);
+  }
+}
+
+char erase_last_from(char* buffer) {
+  int s = strlen(buffer);
+  if (s) {
+    buffer[s - 1] = 0;  //erase last character of pin
+    s--;
+    return 0;
   }
 }
 
@@ -115,7 +130,7 @@ void lock() {
   pinMode(A5, INPUT);
 }
 
-void dopin(const char* pin) {
+char dopin(char* pin) {
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     user = get_user(i);
@@ -128,10 +143,17 @@ void dopin(const char* pin) {
     } else {
       dounlock(user.name);
     }
-    return;
+    pin[0] = 0;
+    return 0;
   }
 
   doerror("PIN ERROR");
+  pin[0] = 0;
+  return 0;
+}
+
+char do_nothing(char* pin) {
+  return 0;
 }
 
 void docard(byte* card_id) {
@@ -259,23 +281,20 @@ void editusername(int u) {
   while (!done) {
     s = strlen(uname);
     XC4630_chara(0, 20, uname, GREY, BLACK);
-    if ((millis() / 300) & 1) {
-      XC4630_chara(s * 12, 20, "_ ", GREY, BLACK);
-    } else {
-      XC4630_chara(s * 12, 20, "_ ", BLACK, BLACK);
-    }
+    XC4630_chara(s * 12, 20, "_ ", GREY * (((millis() / 300) & 1) != 0), BLACK);
+    
     c = checkkeyboard();
-    if (c == '<') {
-      if (s) {
-        uname[s - 1] = 0;  //backspace
-        s--;
+    static const specialkey keys[] = {{'<',erase_last_from}};
+    for(int i=0; i < 1; i++) {
+      if (keys[i].key == c) {
+        c = keys[i].function(uname);
       }
-      c = 0;
     }
+
+    s = strlen(uname);
     if (c && s<13) {
       uname[s] = c;  //add character
-      s++;
-      uname[s] = 0;
+      uname[s+1] = 0;
     }
     if (XC4630_istouch(5, 145, 115, 175)) {
       clear_screen();
@@ -474,40 +493,30 @@ byte getpin(char* pin) {       //get a typed pin for setup
     char a;
     int s;
     a = checktouch();
-    s = strlen(pin);
-    if (a == '#') {
-      if (s) {
-        pin[s - 1] = 0;  //erase last character of pin
-        s--;
-        a = 0;
+    
+    static const specialkey keys[] = {{'#',erase_last_from}, {'*', do_nothing}};
+    for(int i=0; i < 2; i++) {
+      if (keys[i].key == a) {
+        a = keys[i].function(pin);
       }
     }
-    if (a == '*') {
-      a = 0; //ignore (use button for OK)
-    }
-    if (a && s<8) {
+    
+    if (a) {
+      s = strlen(pin);
       pin[s] = a;
-      pin[s + 1] = 0;
-      s++;
     }
     for (int i = 0; i < 8; i++) {
       XC4630_char(120 + i * 12, 260, pin[i], GREY, BLACK);
     }
-    if (s < 4) {
-      pinset = 0; //minimum PIN length
-    } else {
-      pinset = 1;
-    }
+
+    pinset = strlen(pin) >= 4;
     XC4630_tbox(5, 289, 115, 319, "USE PIN", pinset * WHITE, pinset * GREY, 2);
     if (XC4630_istouch(5, 289, 115, 319) && pinset) {
       done = 1; //keep pin
     }
     if (XC4630_istouch(125, 289, 235, 319)) {
-      for (int i = 0; i < 8; i++) {
-        pin[i] = 0; //clear pin value
-      }
+      pinset = pin[0] = 0;
       done = 1;
-      pinset = 0;
     }
   }
   return pinset;
