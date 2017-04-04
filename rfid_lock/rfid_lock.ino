@@ -59,7 +59,7 @@ void draw_user_screen() {
 
 typedef char (*keyboard_function)(char*);
 
-typedef struct specialkey {
+typedef struct {
   char key;
   keyboard_function function;
 } specialkey;
@@ -200,6 +200,7 @@ void domaster() {                                 //for master user to setup oth
   byte done = 0;      //flag to say we've finished
   clear_screen();
   drawuserinfo(u);
+  UserData user = get_user(u);
   while (!done) {
     if (XC4630_istouch(165, 65, 235, 95)) {
       editusername(u);  //edit username
@@ -207,12 +208,14 @@ void domaster() {                                 //for master user to setup oth
       delay(100);
     }
     if (XC4630_istouch(5, 145, 75, 175)) {
-      EEPROM.write(u * 32 + 30, 0);  //disable card
+      user.card_allowed = 0;
+      EEPROM.put(u * sizeof(UserData), user);
       drawuserinfo(u);
       delay(100);
     }
     if (XC4630_istouch(85, 145, 155, 175)) {
-      EEPROM.write(u * 32 + 30, 1);  //enable card
+      user.card_allowed = 1;
+      EEPROM.put(u * sizeof(UserData), user);
       drawuserinfo(u);
       delay(100);
     }
@@ -222,12 +225,14 @@ void domaster() {                                 //for master user to setup oth
       delay(100);
     }
     if (XC4630_istouch(5, 225, 75, 255)) {
-      EEPROM.write(u * 32 + 31, 0);  //disable pin
+      user.pin_allowed = 0;
+      EEPROM.put(u * sizeof(UserData), user);
       drawuserinfo(u);
       delay(100);
     }
     if (XC4630_istouch(85, 225, 155, 255)) {
-      EEPROM.write(u * 32 + 31, 1);  //enable pin
+      user.pin_allowed = 1;
+      EEPROM.put(u * sizeof(UserData), user);
       drawuserinfo(u);
       delay(100);
     }
@@ -243,6 +248,7 @@ void domaster() {                                 //for master user to setup oth
       }
       clear_screen();
       drawuserinfo(u);
+      user = get_user(u);
       delay(100);
     }
     if (XC4630_istouch(85, 265, 155, 305)) {
@@ -252,6 +258,7 @@ void domaster() {                                 //for master user to setup oth
       }
       clear_screen();
       drawuserinfo(u);
+      user = get_user(u);
       delay(100);
     }
     if (XC4630_istouch(165, 265, 235, 305)) {
