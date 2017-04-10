@@ -343,40 +343,29 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
 }
 
 void editpin(int u) {   //enter new PIN- need to check if it matches an existing one before validating
-  byte pinset = 0;
-  byte match;                   //flag for mismatch
   int umatch = -1;
-  char pin[8];
+  UserData user = get_user(u);
   
   clear_screen();
-  pinset = getpin(pin);
+  getpin(user.pin);
   for (int i = 0; i < USERCOUNT; i++) {
-    match = 1;
-    for (int n = 0; n < 8; n++) {
-      if (EEPROM.read(i * 32 + n + 8) != pin[n]) {
-        match = 0; //mismatch found, clear
-      }
-    }
-    if (match) {
-      umatch = i; //flag matched user
-    }
+    UserData compare = get_user(i);
+    if(strncmp(user.pin, compare.pin, 8)) { continue; }
+
+    umatch = i;
+    break;
   }
+  
+  clear_screen();
+  
   if (umatch >= 0) {
-    pinset = 0;  //PIN already used
-    clear_screen();
     XC4630_chara(8, 150, "PIN ALREADY IN USE!", RED, BLACK);
     delay(2000);
     clear_screen();
+    return;
   }
-  if (pinset) {
-    for (int i = 0; i < 8; i++) {
-      EEPROM.write(i + 8 + u * 32, pin[i]); //copy to EEPROM
-    }
-  }
-  for (int i = 0; i < 8; i++) {
-    pin[i] = 0; // clear array for main program
-  }
-  clear_screen();
+  
+  EEPROM.put(u * sizeof(UserData), user);
 }
 
 int is_set(const byte* field) {
