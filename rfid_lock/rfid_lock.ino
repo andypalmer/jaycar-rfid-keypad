@@ -270,38 +270,37 @@ void domaster() {                                 //for master user to setup oth
 
 void editusername(int u) {
   int done = 0;
-  char uname[14];
   char c;
   int s;
+  UserData user = get_user(u);
   for (int i = 0; i < 14; i++) {
-    uname[i] = EEPROM.read(u * 32 + 16 + i);  //load current name, change 0xFF to null
-    if (uname[i] < 0) {
-      uname[i] = 0;
+    if (user.name[i] < 0) {
+      user.name[i] = 0;
     }
   }
-  uname[13] = 0;
+  user.name[13] = 0;
   clear_screen();
   XC4630_chara(0, 0, "TYPE USERNAME:", WHITE, BLACK);
   XC4630_tbox(5, 145, 115, 175, "CANCEL", WHITE, GREY, 2);
   XC4630_tbox(125, 145, 235, 175, "ACCEPT", WHITE, GREY, 2);
   drawkeyboard();
   while (!done) {
-    s = strlen(uname);
-    XC4630_chara(0, 20, uname, GREY, BLACK);
+    s = strlen(user.name);
+    XC4630_chara(0, 20, user.name, GREY, BLACK);
     XC4630_chara(s * 12, 20, "_ ", GREY * (((millis() / 300) & 1) != 0), BLACK);
     
     c = checkkeyboard();
     static const specialkey keys[] = {{'<',erase_last_from}};
     for(int i=0; i < 1; i++) {
       if (keys[i].key == c) {
-        c = keys[i].function(uname);
+        c = keys[i].function(user.name);
       }
     }
 
-    s = strlen(uname);
+    s = strlen(user.name);
     if (c && s<13) {
-      uname[s] = c;  //add character
-      uname[s+1] = 0;
+      user.name[s] = c;  //add character
+      user.name[s+1] = 0;
     }
     if (XC4630_istouch(5, 145, 115, 175)) {
       clear_screen();
@@ -309,7 +308,7 @@ void editusername(int u) {
     }
     if (XC4630_istouch(125, 145, 235, 175)) {
       for (int i = 0; i < 14; i++) {
-        EEPROM.write(u * 32 + 16 + i, uname[i]);
+        EEPROM.put(u * sizeof(UserData), user);
       }
       clear_screen();
       return;
