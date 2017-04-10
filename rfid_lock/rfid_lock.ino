@@ -317,38 +317,29 @@ void editusername(int u) {
 }
 
 void editcard(int u) {  //swipe new card- need to check if it matches an existing one before validating
-  byte cardset = 0;
-  byte match;                   //flag for mismatch
   int umatch = -1;
-  byte card_to_write[8];
+  UserData user = get_user(u);
 
   clear_screen();
-  cardset = getcard(card_to_write);                                                            //get a card, returns 0 if no card selected
+  getcard(user.card_id);
   for (int i = 0; i < USERCOUNT; i++) {
-    match = 1;
-    for (int n = 0; n < 8; n++) {
-      if (EEPROM.read(i * 32 + n) != card_to_write[n]) {
-        match = 0; //mismatch found, clear
-      }
-    }
-    if (match) {
-      umatch = i; //flag matched user
-      break;
-    }
+    UserData compare = get_user(i);
+    if(strncmp(user.card_id, compare.card_id, 8)) { continue; }
+    
+    umatch = i; //flag matched user
+    break;
   }
+  
+  clear_screen();
+
   if (umatch >= 0) {
-    cardset = 0;  //card already used
-    clear_screen();
     XC4630_chara(0, 150, "CARD ALREADY IN USE!", RED, BLACK);
     delay(2000);
     clear_screen();
+    return;
   }
-  if (cardset) {
-    for (int i = 0; i < 8; i++) {
-      EEPROM.write(i + u * 32, card_to_write[i]); //copy to EEPROM
-    }
-  }
-  clear_screen();
+  
+  EEPROM.put(u * sizeof(UserData), user);
 }
 
 void editpin(int u) {   //enter new PIN- need to check if it matches an existing one before validating
