@@ -15,7 +15,6 @@
 #define USERCOUNT 32
 #define RELAYTIME 1000
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance, could be static in getcard if we didn't have to do the init in setup... wrap it somehow?
 
 struct UserData {
   byte card_id[8];
@@ -46,9 +45,6 @@ char bb[] = "123456789#0*";
 char kb[] = "1234567890QWERTYUIOPASDFGHJKL'ZXCVBNM .<"; //soft keyboard
 
 void setup() {
-  SPI.begin();              //start SPI
-  mfrc522.PCD_Init();       //start RC522 module
-  pinMode(0, INPUT);        //use serial pullup to hold high
   XC4630_init();
   XC4630_rotate(1);
   UserData admin = get_user(0);
@@ -565,7 +561,16 @@ char checkkeyboard() {
   return 0;
 }
 
+MFRC522 initialize_rfid() {
+  MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance, could be static in getcard if we didn't have to do the init in setup... wrap it somehow?
+  SPI.begin();              //start SPI
+  mfrc522.PCD_Init();       //start RC522 module
+  pinMode(0, INPUT);        //use serial pullup to hold high
+  return mfrc522;
+}
+
 int checkcard(byte* result) {
+  static MFRC522 mfrc522 = initialize_rfid();
   for (byte i = 0; i < 8; i++) {
     result[i] = 0;
   }
