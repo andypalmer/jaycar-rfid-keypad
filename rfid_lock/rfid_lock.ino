@@ -15,7 +15,6 @@
 #define USERCOUNT 32
 #define RELAYTIME 1000
 
-
 struct UserData {
   byte card_id[8];
   byte pin[8];
@@ -23,18 +22,6 @@ struct UserData {
   byte card_allowed;
   byte pin_allowed;
 };
-
-typedef struct Point {
-  int x;
-  int y;
-} Point;
-#define Point(x,y) ((Point){(x),(y)})
-
-typedef struct Size {
-  int width;
-  int height;
-} Size;
-#define Size(w,h) ((Size){(w),(h)})
 
 // Used by dobutton and checktouch
 int bx[] = {25, 95, 165, 25, 95, 165, 25, 95, 165, 25, 95, 165};
@@ -203,41 +190,12 @@ void doerror(const char* reason) {
     XC4630_chara(0, 300, reason, BLACK, BLACK);
 }
 
-typedef struct Button {
-  Point location;
-  Size size;
-  char caption[9];
-} Button;
-
-void Button_DrawButton(struct Button self) {
-  XC4630_tbox(self.location.x, self.location.y, self.location.x + self.size.width, self.location.y + self.size.height, self.caption, WHITE, GREY, 1);
-}
-
-void draw(struct Button* buttons) {
-  for(int i=0; i < 10; i++) {
-    Button_DrawButton(buttons[i]);
-  }
-}
-
 void domaster() {                                 //for master user to setup other users
   int u = 1;          //user to start editing
   byte done = 0;      //flag to say we've finished
   clear_screen();
   drawuserinfo(u);
   UserData user = get_user(u);
-  static Button buttons[] = {
-    (Button){ Point(165,65), Size(70,30), "EDIT" },
-    (Button){ Point(5,145), Size(70,30), "DISABLE" },
-    (Button){ Point(85,145), Size(70,30), "ENABLE" },
-    (Button){ Point(165,145), Size(70,30), "EDIT" },
-    (Button){ Point(5,225), Size(70,30), "DISABLE" },
-    (Button){ Point(85,225), Size(70,30), "ENABLE" },
-    (Button){ Point(165,225), Size(70,30), "EDIT" },
-    (Button){ Point(5,265), Size(70,40), "PREVIOUS" },
-    (Button){ Point(85,265), Size(70,40), "NEXT" },
-    (Button){ Point(165,265), Size(70,40), "EXIT" },
-  };
-  draw(buttons);
   while (!done) {
     if (XC4630_istouch(165, 65, 235, 95)) {
       editusername(u);  //edit username
@@ -302,7 +260,6 @@ void domaster() {                                 //for master user to setup oth
       done = 1; //exit
     }
   }
-  draw(buttons);
   draw_user_screen();
 }
 
@@ -443,6 +400,17 @@ void drawuserinfo(int u) {
   } else {
     XC4630_chara(120, 200, "DISABLED", RED, BLACK);
   }
+  
+  XC4630_tbox(165, 65, 235, 95, "EDIT", WHITE, GREY, 2); //edit username
+  XC4630_tbox(5, 145, 75, 175, "DISABLE", WHITE, GREY, 1); //edit Card
+  XC4630_tbox(85, 145, 155, 175, "ENABLE", WHITE, GREY, 1); //edit Card
+  XC4630_tbox(165, 145, 235, 175, "EDIT", WHITE, GREY, 2); //edit Card
+  XC4630_tbox(5, 225, 75, 255, "DISABLE", WHITE, GREY, 1); //edit PIN
+  XC4630_tbox(85, 225, 155, 255, "ENABLE", WHITE, GREY, 1); //edit PIN
+  XC4630_tbox(165, 225, 235, 255, "EDIT", WHITE, GREY, 2); //edit PIN
+  XC4630_tbox(5, 265, 75, 305, "PREVIOUS", WHITE, GREY, 1); //previous user
+  XC4630_tbox(85, 265, 155, 305, "NEXT", WHITE, GREY, 1); //next user
+  XC4630_tbox(165, 265, 235, 305, "EXIT", WHITE, GREY, 2); //done
 }
 
 void dosetup(UserData admin) {
