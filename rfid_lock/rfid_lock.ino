@@ -9,6 +9,7 @@
 #include <MFRC522.h>
 #include <EEPROM.h>
 #include <string.h>
+#include "CharBuffer.c"
 
 #define RST_PIN 0
 #define SS_PIN 10
@@ -60,29 +61,19 @@ typedef struct {
 } specialkey;
 
 void loop() {
-  static char pin[9] = "";
+  static CharBuffer pin = CharBuffer_Create(8);
   byte card_id[8];
-  char a;
-  int s;
 
-  a = checktouch();
+  const char a = checktouch();
   
-  static const specialkey keys[] = {{'#',erase_last_from}, {'*', dopin}};
-  for(int i=0; i < 2; i++) {
-    if (keys[i].key == a) {
-      a = keys[i].function(pin);
-    }
+  switch(a) {
+    case '#': CharBuffer_Erase(pin); break;
+    case '*': dopin(CharBuffer_Value(pin)); break;
+    default : CharBuffer_Add(pin, a);
   }
 
-  s = strlen(pin);
-  if (a && s<8) {
-    pin[s] = a;
-    pin[s + 1] = 0;
-  }
- 
-  s = strlen(pin);
-  for (int i = 0; i < 8; i++) {
-    XC4630_char(120 + i * 12, 260, ((i < s) ? '*' : ' '), GREY, BLACK);
+  for (int i = 0; i < CharBuffer_Max(pin); i++) {
+    XC4630_char(120 + i * 12, 260, ((i < CharBuffer_Length(pin)) ? '*' : ' '), GREY, BLACK);
   }
   
   if (checkcard(card_id)) {
