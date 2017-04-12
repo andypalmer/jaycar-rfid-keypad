@@ -1,18 +1,20 @@
 #pragma once
 
+typedef struct CharBufferInternals* CharBuffer;
+void CharBuffer_Clear(CharBuffer self);
+
 typedef struct CharBufferInternals {
   int max;
   int length;
   char* buffer;
 } CharBufferInternals;
 
-typedef struct CharBufferInternals* CharBuffer;
-
 CharBuffer CharBuffer_Create(int max) {
   CharBuffer self = calloc(1, sizeof(CharBufferInternals));
   self->max = max;
   self->length = 0;
   self->buffer = calloc(max, sizeof(char));
+  CharBuffer_Clear(self);
 
   return self;
 }
@@ -22,6 +24,11 @@ void CharBuffer_Add(CharBuffer self, char character) {
     self->buffer[self->length] = character;
     self->length++;
   }
+}
+
+void CharBuffer_Replace(CharBuffer self, char* replacement) {
+  strncpy(self->buffer, replacement, self->max);
+  self->length = strlen(self->buffer);
 }
 
 void CharBuffer_Erase(CharBuffer self) {

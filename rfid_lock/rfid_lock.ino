@@ -68,7 +68,7 @@ void loop() {
   
   switch(a) {
     case '#': CharBuffer_Erase(pin); break;
-    case '*': dopin(CharBuffer_Value(pin)); break;
+    case '*': dopin(CharBuffer_Value(pin)); CharBuffer_Clear(pin); break;
     default : CharBuffer_Add(pin, a);
   }
 
@@ -256,46 +256,33 @@ void domaster() {                                 //for master user to setup oth
 
 void editusername(int u) {
   int done = 0;
-  char c;
-  int s;
+  static CharBuffer username = CharBuffer_Create(14);
   UserData user = get_user(u);
   for (int i = 0; i < 14; i++) {
-    if (user.name[i] < 0) {
-      user.name[i] = 0;
-    }
+    if (user.name[i] < 0) { user.name[i] = 0; }
   }
-  user.name[13] = 0;
+  CharBuffer_Replace(username, user.name);
   clear_screen();
   XC4630_chara(0, 0, "TYPE USERNAME:", WHITE, BLACK);
   XC4630_tbox(5, 145, 115, 175, "CANCEL", WHITE, GREY, 2);
   XC4630_tbox(125, 145, 235, 175, "ACCEPT", WHITE, GREY, 2);
   drawkeyboard();
   while (!done) {
-    s = strlen(user.name);
-    XC4630_chara(0, 20, user.name, GREY, BLACK);
-    XC4630_chara(s * 12, 20, "_ ", GREY * (((millis() / 300) & 1) != 0), BLACK);
+    XC4630_chara(0, 20, CharBuffer_Value(username), GREY, BLACK);
+    XC4630_chara(CharBuffer_Length(username) * 12, 20, "_ ", GREY * (((millis() / 300) & 1) != 0), BLACK);
     
-    c = checkkeyboard();
-    static const specialkey keys[] = {{'<',erase_last_from}};
-    for(int i=0; i < 1; i++) {
-      if (keys[i].key == c) {
-        c = keys[i].function(user.name);
-      }
-    }
-
-    s = strlen(user.name);
-    if (c && s<13) {
-      user.name[s] = c;  //add character
-      user.name[s+1] = 0;
+    const char a = checkkeyboard();
+    switch(a) {
+      case '<': CharBuffer_Erase(username); break;
+      default : CharBuffer_Add(username, a);
     }
     if (XC4630_istouch(5, 145, 115, 175)) {
       clear_screen();
       return;
     }
     if (XC4630_istouch(125, 145, 235, 175)) {
-      for (int i = 0; i < 14; i++) {
-        EEPROM.put(u * sizeof(UserData), user);
-      }
+      strncpy(user.name, CharBuffer_Value(username), CharBuffer_Max(username));
+      EEPROM.put(u * sizeof(UserData), user);
       clear_screen();
       return;
     }
@@ -452,45 +439,39 @@ byte getcard(byte* result) {      //get a swiped card for setup
   return cardset;
 }
 
-byte getpin(char* pin) {       //get a typed pin for setup
+byte getpin(char* result) {       //get a typed pin for setup
   byte done = 0;
   byte pinset = 0;
+  static CharBuffer pin = CharBuffer_Create(8);
   draw_pinpad();
   XC4630_chara(0, 260, "ENTER PIN:", WHITE, BLACK);
   XC4630_tbox(125, 289, 235, 319, "CANCEL", RED, GREY, 2);
-  for (int i = 0; i < 8; i++) {
-    pin[i] = 0;
-  }
+
   while (!done) {
-    char a;
-    int s;
-    a = checktouch();
-    
-    static const specialkey keys[] = {{'#',erase_last_from}, {'*', do_nothing}};
-    for(int i=0; i < 2; i++) {
-      if (keys[i].key == a) {
-        a = keys[i].function(pin);
-      }
+    const char a = checktouch();
+    switch(a) {
+      case '#': CharBuffer_Erase(pin); break;
+      case '*': break;
+      default : CharBuffer_Add(pin, a);
     }
     
-    if (a) {
-      s = strlen(pin);
-      pin[s] = a;
-    }
-    for (int i = 0; i < 8; i++) {
-      XC4630_char(120 + i * 12, 260, pin[i], GREY, BLACK);
+    for (int i = 0; i < CharBuffer_Max(pin); i++) {
+      XC4630_char(120 + i * 12, 260, CharBuffer_Value(pin)[i], GREY, BLACK);
     }
 
-    pinset = strlen(pin) >= 4;
+    pinset = CharBuffer_Length(pin) >= 4;
     XC4630_tbox(5, 289, 115, 319, "USE PIN", pinset * WHITE, pinset * GREY, 2);
     if (XC4630_istouch(5, 289, 115, 319) && pinset) {
+      strncpy(result, CharBuffer_Value(pin), CharBuffer_Max(pin));
       done = 1; //keep pin
     }
     if (XC4630_istouch(125, 289, 235, 319)) {
-      pinset = pin[0] = 0;
+      pinset = 0;
+      result[0] = 0;
       done = 1;
     }
   }
+  CharBuffer_Clear(pin);
   return pinset;
 }
 
