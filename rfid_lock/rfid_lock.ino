@@ -494,32 +494,6 @@ byte getpin(char* pin) {       //get a typed pin for setup
   return pinset;
 }
 
-void drawkeyboard() {
-  char t[] = " ";
-  for (int i = 0; i < 40; i++) {
-    t[0] = kb[i];
-    XC4630_tbox((i % 10) * 24, 200 + (i / 10) * 30, (i % 10) * 24 + 22, 228 + (i / 10) * 30, t, BLACK, GREY, 3);
-  }
-}
-
-char checkkeyboard() {
-  int x, y;
-  static char lastn = 0;
-  char n;
-  n = 0;
-  x = XC4630_touchx();
-  y = XC4630_touchy();
-  if ((x > 0) && (y > 200)) {
-    n = kb[x / 24 + ((y - 200) / 30) * 10];
-  }
-  if ((lastn == 0) && (n)) {
-    lastn = n;
-    return n;
-  }
-  lastn = n;
-  return 0;
-}
-
 MFRC522 initialize_rfid() {
   MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance, could be static in getcard if we didn't have to do the init in setup... wrap it somehow?
   SPI.begin();              //start SPI
@@ -558,6 +532,32 @@ void dobutton(int n, unsigned int f, unsigned int b, int s) {
   char t[] = " "; //single char array
   t[0] = bb[n];
   XC4630_tbox(bx[n], by[n], bx[n] + s - 1, by[n] + s - 1, t, f, b, 6);
+}
+
+void drawkeyboard() {
+  char t[] = " ";
+  for (int i = 0; i < 40; i++) {
+    t[0] = kb[i];
+    XC4630_tbox((i % 10) * 24, 200 + (i / 10) * 30, (i % 10) * 24 + 22, 228 + (i / 10) * 30, t, BLACK, GREY, 3);
+  }
+}
+
+char checkkeyboard() {
+  int x, y;
+  static char lastn = 0;
+  char n;
+  n = 0;
+  x = XC4630_touchx();
+  y = XC4630_touchy();
+  if ((x > 0) && (y > 200)) {
+    n = kb[x / 24 + ((y - 200) / 30) * 10];
+  }
+  if ((lastn == 0) && (n)) {
+    lastn = n;
+    return n;
+  }
+  lastn = n;
+  return 0;
 }
 
 char checktouch() {                    //returns touched button
