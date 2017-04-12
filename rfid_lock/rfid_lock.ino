@@ -53,13 +53,6 @@ void draw_user_screen() {
   display_ready_message();
 }
 
-typedef char (*keyboard_function)(char*);
-
-typedef struct {
-  char key;
-  keyboard_function function;
-} specialkey;
-
 void loop() {
   static CharBuffer pin = CharBuffer_Create(8);
   byte card_id[8];
@@ -82,15 +75,6 @@ void loop() {
     delay(100);
   } else {
     XC4630_chara(108, 280, "CARD", GREY, BLACK);
-  }
-}
-
-char erase_last_from(char* buffer) {
-  int s = strlen(buffer);
-  if (s) {
-    buffer[s - 1] = 0;  //erase last character of pin
-    s--;
-    return 0;
   }
 }
 
@@ -135,10 +119,6 @@ char dopin(char* pin) {
 
   doerror("PIN ERROR");
   pin[0] = 0;
-  return 0;
-}
-
-char do_nothing(char* pin) {
   return 0;
 }
 
