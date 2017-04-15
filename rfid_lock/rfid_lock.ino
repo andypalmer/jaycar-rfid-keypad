@@ -32,6 +32,14 @@ char bb[] = "123456789#0*";
 // Used by drawkeyboard and checkkeyboard
 char kb[] = "1234567890QWERTYUIOPASDFGHJKL'ZXCVBNM .<"; //soft keyboard
 
+typedef struct Screen {
+  void (*display)();
+  Screen* (*process_inputs)();
+} Screen;
+
+Screen pin_entry = { &draw_user_screen, &process_user_inputs};
+Screen admin = { &drawuserinfo, &domaster};
+
 void setup() {
   XC4630_init();
   XC4630_rotate(1);
@@ -41,6 +49,17 @@ void setup() {
   }
   draw_user_screen();
   Serial.begin(9600);
+}
+
+void loop() {
+  static Screen* current = &pin_entry;
+  Screen* next = current -> process_inputs();
+  if (next != current) {
+    Serial.println((int)&next);
+    Serial.println((int)&current);
+    next->display();
+    current = next;
+  }
 }
 
 void clear_screen() {
@@ -53,29 +72,30 @@ void draw_user_screen() {
   display_ready_message();
 }
 
-void loop() {
+Screen* process_user_inputs() {
   static CharBuffer pin = CharBuffer_Create(8);
   byte card_id[8];
 
   const char a = checktouch();
-  
-  switch(a) {
+
+  switch (a) {
     case '#': CharBuffer_Erase(pin); break;
-    case '*': dopin(CharBuffer_Value(pin)); CharBuffer_Clear(pin); break;
+    case '*': { Screen* next = dopin(CharBuffer_Value(pin)); CharBuffer_Clear(pin); return next; }
     default : CharBuffer_Add(pin, a);
   }
 
   for (int i = 0; i < CharBuffer_Max(pin); i++) {
     XC4630_char(120 + i * 12, 260, ((i < CharBuffer_Length(pin)) ? '*' : ' '), GREY, BLACK);
   }
-  
+
   if (checkcard(card_id)) {
     XC4630_chara(108, 280, "CARD", BLACK, WHITE);
-    docard(card_id);                                   //process card
+    return docard(card_id);                                   //process card
     delay(100);
   } else {
     XC4630_chara(108, 280, "CARD", GREY, BLACK);
   }
+  return &pin_entry;
 }
 
 UserData get_user(int i) {
@@ -100,45 +120,54 @@ void lock() {
   pinMode(A5, INPUT);
 }
 
-char dopin(char* pin) {
+Screen* dopin(char* pin) {
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     user = get_user(i);
 
-    if (strncmp(user.pin, pin, 8)) { continue; }
-    if (!user.pin_allowed)         { break; }
-    
-    if (i==0) { 
-      domaster(); 
+    if (strncmp(user.pin, pin, 8)) {
+      continue;
+    }
+    if (!user.pin_allowed)         {
+      break;
+    }
+
+    if (i == 0) {
+      return &admin;
     } else {
       dounlock(user.name);
     }
     pin[0] = 0;
-    return 0;
+    return &pin_entry;
   }
 
   doerror("PIN ERROR");
   pin[0] = 0;
-  return 0;
+  return &pin_entry;
 }
 
-void docard(byte* card_id) {
+Screen* docard(byte* card_id) {
   UserData user;
   for (int i = 0; i < USERCOUNT; i++) {
     user = get_user(i);
 
-    if (strncmp(user.card_id, card_id, 8)) { continue; }
-    if (!user.card_allowed) { break; }
+    if (strncmp(user.card_id, card_id, 8)) {
+      continue;
+    }
+    if (!user.card_allowed) {
+      break;
+    }
 
-    if (i==0) { 
-      domaster(); 
+    if (i == 0) {
+      return &admin;
     } else {
       dounlock(user.name);
+      return &pin_entry;
     }
-    return;
   }
-  
+
   doerror("CARD ERROR");
+  return &pin_entry;
 }
 
 void dounlock(const char* name) {
@@ -156,82 +185,79 @@ void display_unlock_message(const char* name) {
 }
 
 void doerror(const char* reason) {
-    XC4630_chara(0, 300, reason, RED, BLACK);  //error message
-    delay(1000);
-    XC4630_chara(0, 300, reason, BLACK, BLACK);
+  XC4630_chara(0, 300, reason, RED, BLACK);  //error message
+  delay(1000);
+  XC4630_chara(0, 300, reason, BLACK, BLACK);
 }
 
-void domaster() {                                 //for master user to setup other users
-  int u = 1;          //user to start editing
-  byte done = 0;      //flag to say we've finished
-  clear_screen();
-  drawuserinfo(u);
-  UserData user = get_user(u);
-  while (!done) {
-    if (XC4630_istouch(165, 65, 235, 95)) {
-      editusername(u);  //edit username
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(5, 145, 75, 175)) {
-      user.card_allowed = 0;
-      EEPROM.put(u * sizeof(UserData), user);
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(85, 145, 155, 175)) {
-      user.card_allowed = 1;
-      EEPROM.put(u * sizeof(UserData), user);
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(165, 145, 235, 175)) {
-      editcard(u);  //edit card #
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(5, 225, 75, 255)) {
-      user.pin_allowed = 0;
-      EEPROM.put(u * sizeof(UserData), user);
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(85, 225, 155, 255)) {
-      user.pin_allowed = 1;
-      EEPROM.put(u * sizeof(UserData), user);
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(165, 225, 235, 255)) {
-      editpin(u);  //edit PIN
-      drawuserinfo(u);
-      delay(100);
-    }
-    if (XC4630_istouch(5, 265, 75, 305)) {
-      u = u - 1;  //previous
-      if (u < 0) {
-        u = USERCOUNT - 1;
-      }
-      clear_screen();
-      drawuserinfo(u);
-      user = get_user(u);
-      delay(100);
-    }
-    if (XC4630_istouch(85, 265, 155, 305)) {
-      u = u + 1;  //next
-      if (u > USERCOUNT - 1) {
-        u = 0;
-      }
-      clear_screen();
-      drawuserinfo(u);
-      user = get_user(u);
-      delay(100);
-    }
-    if (XC4630_istouch(165, 265, 235, 305)) {
-      done = 1; //exit
-    }
+Screen* domaster() {                                 //for master user to setup other users
+  static int u = 1;          //user to start editing
+  static UserData user = get_user(u);
+
+  if (XC4630_istouch(165, 65, 235, 95)) {
+    editusername(u);  //edit username
+    drawuserinfo(u);
+    delay(100);
   }
-  draw_user_screen();
+  if (XC4630_istouch(5, 145, 75, 175)) {
+    user.card_allowed = 0;
+    EEPROM.put(u * sizeof(UserData), user);
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(85, 145, 155, 175)) {
+    user.card_allowed = 1;
+    EEPROM.put(u * sizeof(UserData), user);
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(165, 145, 235, 175)) {
+    editcard(u);  //edit card #
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(5, 225, 75, 255)) {
+    user.pin_allowed = 0;
+    EEPROM.put(u * sizeof(UserData), user);
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(85, 225, 155, 255)) {
+    user.pin_allowed = 1;
+    EEPROM.put(u * sizeof(UserData), user);
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(165, 225, 235, 255)) {
+    editpin(u);  //edit PIN
+    drawuserinfo(u);
+    delay(100);
+  }
+  if (XC4630_istouch(5, 265, 75, 305)) {
+    u = u - 1;  //previous
+    if (u < 0) {
+      u = USERCOUNT - 1;
+    }
+    clear_screen();
+    drawuserinfo(u);
+    user = get_user(u);
+    delay(100);
+  }
+  if (XC4630_istouch(85, 265, 155, 305)) {
+    u = u + 1;  //next
+    if (u > USERCOUNT - 1) {
+      u = 0;
+    }
+    clear_screen();
+    drawuserinfo(u);
+    user = get_user(u);
+    delay(100);
+  }
+  if (XC4630_istouch(165, 265, 235, 305)) {
+    return &pin_entry;
+  }
+
+  return &admin;
 }
 
 void editusername(int u) {
@@ -239,7 +265,9 @@ void editusername(int u) {
   static CharBuffer username = CharBuffer_Create(14);
   UserData user = get_user(u);
   for (int i = 0; i < 14; i++) {
-    if (user.name[i] < 0) { user.name[i] = 0; }
+    if (user.name[i] < 0) {
+      user.name[i] = 0;
+    }
   }
   CharBuffer_Replace(username, user.name);
   clear_screen();
@@ -250,9 +278,9 @@ void editusername(int u) {
   while (!done) {
     XC4630_chara(0, 20, CharBuffer_Value(username), GREY, BLACK);
     XC4630_chara(CharBuffer_Length(username) * 12, 20, "_ ", GREY * (((millis() / 300) & 1) != 0), BLACK);
-    
+
     const char a = checkkeyboard();
-    switch(a) {
+    switch (a) {
       case '<': CharBuffer_Erase(username); break;
       default : CharBuffer_Add(username, a);
     }
@@ -277,12 +305,14 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
   getcard(user.card_id);
   for (int i = 0; i < USERCOUNT; i++) {
     UserData compare = get_user(i);
-    if(strncmp(user.card_id, compare.card_id, 8)) { continue; }
-    
+    if (strncmp(user.card_id, compare.card_id, 8)) {
+      continue;
+    }
+
     umatch = i; //flag matched user
     break;
   }
-  
+
   clear_screen();
 
   if (umatch >= 0) {
@@ -291,40 +321,48 @@ void editcard(int u) {  //swipe new card- need to check if it matches an existin
     clear_screen();
     return;
   }
-  
+
   EEPROM.put(u * sizeof(UserData), user);
 }
 
 void editpin(int u) {   //enter new PIN- need to check if it matches an existing one before validating
   int umatch = -1;
   UserData user = get_user(u);
-  
+
   clear_screen();
   getpin(user.pin);
   for (int i = 0; i < USERCOUNT; i++) {
     UserData compare = get_user(i);
-    if(strncmp(user.pin, compare.pin, 8)) { continue; }
+    if (strncmp(user.pin, compare.pin, 8)) {
+      continue;
+    }
 
     umatch = i;
     break;
   }
-  
+
   clear_screen();
-  
+
   if (umatch >= 0) {
     XC4630_chara(8, 150, "PIN ALREADY IN USE!", RED, BLACK);
     delay(2000);
     clear_screen();
     return;
   }
-  
+
   EEPROM.put(u * sizeof(UserData), user);
 }
 
 int is_set(const byte* field) {
   int e = 0;
-  for(int i=0; i < 8; i++) { e += field[i]; }
+  for (int i = 0; i < 8; i++) {
+    e += field[i];
+  }
   return e != 8 * 0xFF;
+}
+
+void drawuserinfo() {
+  drawuserinfo(1);
 }
 
 void drawuserinfo(int u) {
@@ -334,7 +372,7 @@ void drawuserinfo(int u) {
   XC4630_char(132, 0, (u) % 10 + '0', WHITE, BLACK);
   XC4630_chara(0, 20, "Name:", WHITE, BLACK);
   XC4630_chara(0, 40, user.name, WHITE, BLACK);
-  
+
   XC4630_chara(0, 100, "Card:", WHITE, BLACK);
   if (is_set(user.card_id)) {
     XC4630_chara(0, 120, "SET    ", GREEN, BLACK);
@@ -346,7 +384,7 @@ void drawuserinfo(int u) {
   } else {
     XC4630_chara(120, 120, "DISABLED", RED, BLACK);
   }
-  
+
   XC4630_chara(0, 180, "PIN:", WHITE, BLACK);
   if (is_set(user.pin)) {
     XC4630_chara(0, 200, "SET    ", GREEN, BLACK);
@@ -358,7 +396,7 @@ void drawuserinfo(int u) {
   } else {
     XC4630_chara(120, 200, "DISABLED", RED, BLACK);
   }
-  
+
   XC4630_tbox(165, 65, 235, 95, "EDIT", WHITE, GREY, 2); //edit username
   XC4630_tbox(5, 145, 75, 175, "DISABLE", WHITE, GREY, 1); //edit Card
   XC4630_tbox(85, 145, 155, 175, "ENABLE", WHITE, GREY, 1); //edit Card
@@ -381,8 +419,8 @@ void dosetup(UserData admin) {
   clear_screen();
   XC4630_chara(0, 0, " MASTER USER SETUP  ", WHITE, RED_1 * 8);                   //warning for master setup
   admin.pin_allowed = getpin(admin.pin);                                                              //get a pin, returns 0 if no pin entered/cancelled
-  
-  EEPROM.put(0,admin);
+
+  EEPROM.put(0, admin);
 }
 
 byte getcard(byte* result) {      //get a swiped card for setup
@@ -429,12 +467,12 @@ byte getpin(char* result) {       //get a typed pin for setup
 
   while (!done) {
     const char a = checktouch();
-    switch(a) {
+    switch (a) {
       case '#': CharBuffer_Erase(pin); break;
       case '*': break;
       default : CharBuffer_Add(pin, a);
     }
-    
+
     for (int i = 0; i < CharBuffer_Max(pin); i++) {
       XC4630_char(120 + i * 12, 260, CharBuffer_Value(pin)[i], GREY, BLACK);
     }
